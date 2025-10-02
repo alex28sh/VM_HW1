@@ -132,11 +132,11 @@ void detect_phase(map<int, ll> &entities) {
             spots++;
         }
 
-        std::cout << "Stride: " << stride << " Jumps: " << jumps.size() << endl;
+        std::cerr << "Stride: " << stride << " Jumps: " << jumps.size() << endl;
         for (auto jump : jumps) {
-            std::cout << jump << " ";
+            std::cerr << jump << " ";
         }
-        std::cout << endl;
+        std::cerr << endl;
 
         bool should_break = !jumps_by_strides.empty() && !is_movement(jumps_by_strides.back(), jumps);
         jumps_by_strides.push_back(jumps);
@@ -150,6 +150,72 @@ void detect_phase(map<int, ll> &entities) {
     }
 
     detect_entities(jumps_by_strides, strides, entities);
+}
+
+ll get_time_high_low_stride(const int high_stride, const int low_stride, const int max_spots) {
+    const int stride = high_stride + low_stride;
+    int spots = 1;
+    ll total = 0;
+    while (spots <= max_spots) {
+        total += my_get_time(stride, spots);
+        spots++;
+    }
+    return total / max_spots;
+}
+
+enum PATTERN {
+    PATTERN_UP,
+    PATTERN_DOWN,
+    PATTERN_SAME
+};
+
+const double CHANGE_COEF = 1.15;
+
+int disambiguation_phase() {
+
+    vector <pair<int, PATTERN>> patterns = {};
+
+    for (int high_stride = 16; high_stride < 1024; high_stride *= 2) {
+
+        auto time_zero_low = get_time_high_low_stride(high_stride, 0, MAX_SPOTS);
+
+        vector count_changes = {0, 0};
+        for (int low_stride = max(1, high_stride >> 4); low_stride < high_stride; low_stride *= 2) {
+
+            auto time_cur_low = get_time_high_low_stride(high_stride, low_stride, MAX_SPOTS);
+
+            if (time_cur_low <= CHANGE_COEF * time_zero_low && time_zero_low <= CHANGE_COEF * time_cur_low) {
+                continue;
+            }
+
+            if (time_cur_low < time_zero_low) {
+                count_changes[PATTERN_UP]++;
+            } else {
+                count_changes[PATTERN_DOWN]++;
+            }
+        }
+
+        auto pat = PATTERN_SAME;
+        if (count_changes[PATTERN_UP] > count_changes[PATTERN_DOWN]) pat = PATTERN_UP;
+        else if (count_changes[PATTERN_UP] < count_changes[PATTERN_DOWN]) pat = PATTERN_DOWN;
+
+        patterns.emplace_back(high_stride, pat);
+        std::cerr << "Stride: " << high_stride << " Pattern: " << pat << std::endl;
+        std::cerr << count_changes[PATTERN_UP] << " " << count_changes[PATTERN_DOWN] << std::endl;
+    }
+
+    int line_size = -1;
+    bool observed_down = false;
+    for (auto [high_stride, pat] : patterns) {
+        if ((pat == PATTERN_UP || pat == PATTERN_SAME) && observed_down) {
+            line_size = high_stride;
+            break;
+        }
+        if (pat == PATTERN_DOWN) {
+            observed_down = true;
+        }
+    }
+    return line_size;
 }
 
 void set_cpu() {
@@ -175,10 +241,12 @@ int main() {
     std::cout << "Entities: " << entities.size() << endl;
     ll size = 0;
     for (auto [key, value] : entities) {
-        std::cout << key << " -> " << value << endl;
+        std::cout << "Entity associativity: " << key << ", entity stride: " << value << endl;
         size += value * key;
     }
     std::cout << "Total cache size: " << size << endl;
 
+    auto line_size = disambiguation_phase();
+    std::cout << "Cache line size: " << line_size << endl;
     return 0;
 }

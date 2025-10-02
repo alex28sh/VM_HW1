@@ -173,9 +173,12 @@ int main() {
     detect_phase(entities);
 
     std::cout << "Entities: " << entities.size() << endl;
+    ll size = 0;
     for (auto [key, value] : entities) {
         std::cout << key << " -> " << value << endl;
+        size += value * key;
     }
+    std::cout << "Total cache size: " << size << endl;
 
     return 0;
 }

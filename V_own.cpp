@@ -9,9 +9,10 @@ typedef long long ll;
 
 using namespace std;
 
-constexpr int MAX_MEMORY = 64 * 1024 * 1024;
-constexpr int MAX_SPOTS = 1 << 11;
-constexpr int READS_COUNT = 300'000;
+constexpr int MAX_MEMORY = 256 * 1024 * 1024;
+constexpr int MAX_ASSOC = 1 << 5;
+constexpr int READS_COUNT = 1 << 20;
+constexpr int MAX_MEMORY_RANGE = 1 << 11;
 
 uintptr_t *memory = static_cast<uintptr_t *>(
     mmap(
@@ -116,16 +117,16 @@ void detect_phase(map<int, ll> &entities) {
     vector <vector <int> > jumps_by_strides;
     vector <int> strides;
 
-    while (stride * MAX_SPOTS < MAX_MEMORY) {
+    while (stride * MAX_ASSOC < MAX_MEMORY) {
         int spots = 1;
         ll old_time = -1;
 
         vector <int> jumps;
 
-        while (spots < MAX_SPOTS) {
+        while (spots < MAX_ASSOC) {
             ll cur_time = my_get_time(stride, spots);
 
-            if (old_time != -1 && cur_time > (old_time * 3) / 2) {
+            if (old_time != -1 && cur_time > old_time * 1.25) {
                 jumps.push_back(spots - 1);
             }
             old_time = cur_time;
@@ -169,22 +170,22 @@ enum PATTERN {
     PATTERN_SAME
 };
 
-const double CHANGE_COEF = 1.15;
+const double jumpCoef = 1.15;
 
 int disambiguation_phase() {
 
     vector <pair<int, PATTERN>> patterns = {};
 
-    for (int high_stride = 16; high_stride < 1024; high_stride *= 2) {
+    for (int high_stride = 16; high_stride <= 1024; high_stride *= 2) {
 
-        auto time_zero_low = get_time_high_low_stride(high_stride, 0, MAX_SPOTS);
+        auto time_zero_low = get_time_high_low_stride(high_stride, 0, MAX_MEMORY_RANGE);
 
         vector count_changes = {0, 0};
         for (int low_stride = max(1, high_stride >> 4); low_stride < high_stride; low_stride *= 2) {
 
-            auto time_cur_low = get_time_high_low_stride(high_stride, low_stride, MAX_SPOTS);
+            auto time_cur_low = get_time_high_low_stride(high_stride, low_stride, MAX_MEMORY_RANGE);
 
-            if (time_cur_low <= CHANGE_COEF * time_zero_low && time_zero_low <= CHANGE_COEF * time_cur_low) {
+            if (time_cur_low <= jumpCoef * time_zero_low && time_zero_low <= jumpCoef * time_cur_low) {
                 continue;
             }
 
@@ -228,7 +229,7 @@ void set_cpu() {
     }
 }
 
-int main() {
+int main(int argc, char **argv) {
 
     // ios::sync_with_stdio(false);
     // cin.tie(nullptr);
@@ -239,14 +240,20 @@ int main() {
     detect_phase(entities);
 
     std::cout << "Entities: " << entities.size() << endl;
-    ll size = 0;
+
+    if (entities.empty()) {
+        std::cout << "No entities found" << endl;
+        return 0;
+    }
+
     for (auto [key, value] : entities) {
         std::cout << "Entity associativity: " << key << ", entity stride: " << value << endl;
-        size += value * key;
     }
-    std::cout << "Total cache size: " << size << endl;
+    std::cout << "Cache size: " << entities.begin()->first * entities.begin()->second << "B" << endl;
+    std::cout << "Cache associativity: " << entities.begin()->first << endl;
+
 
     auto line_size = disambiguation_phase();
-    std::cout << "Cache line size: " << line_size << endl;
+    std::cout << "Cache line size: " << line_size << "B" << endl;
     return 0;
 }

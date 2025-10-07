@@ -170,7 +170,7 @@ enum PATTERN {
     PATTERN_SAME
 };
 
-const double jumpCoef = 1.15;
+const double jumpCoef = 1.05;
 
 int disambiguation_phase() {
 

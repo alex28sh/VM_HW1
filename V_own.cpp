@@ -42,13 +42,14 @@ void use_volatile(volatile uintptr_t* sink) {
     another_sink = reinterpret_cast<uintptr_t *>(*sink);
 }
 
+std::random_device rd;   // Seed
+std::mt19937 g(rd());    // Mersenne Twister RNG
+
 ll my_get_time(const int stride, const int spots) {
 
     std::vector<int> indices(spots);  // size = n
     std::iota(indices.begin(), indices.end(), 0); // fills 0..n-1
 
-    std::random_device rd;   // Seed
-    std::mt19937 g(rd());    // Mersenne Twister RNG
     std::ranges::shuffle(indices, g);
 
     const auto stride_ptr = stride / sizeof(uintptr_t);
@@ -90,13 +91,13 @@ void detect_entities(
     auto last_jumps = jumps_by_strides.back();
 
     for (auto jump : last_jumps) {
-        entities[jump] = -1;
+        entities[jump] = strides.back();
     }
 
     int idx = jumps_by_strides.size() - 2;
     while (idx >= 0) {
         for (auto cur_jump : jumps_by_strides[idx]) {
-            if (entities.contains(cur_jump) && entities[cur_jump] == -1) {
+            if (entities.contains(cur_jump) && entities[cur_jump] == strides[idx + 1]) {
                 entities[cur_jump] = strides[idx];
             }
         }
